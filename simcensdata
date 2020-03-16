@@ -1,0 +1,60 @@
+#FUNCTION FOR GENERATING CENSORED DATA THAT SUITABLE FOR TOBIT MODEL AND SEMIPARAMETRIC MODELLING
+#-----------------------------------------
+simcensdata=function(n,numexp,CL){
+  library(Rlab)   
+  
+  #CL denotes censoring level
+  #numexp denotes the number of explanatory variables
+  #n sample size
+  
+  z     <- 0                 #Explanatory variable for the nonparametric component
+  y     <- 0                 #Response variable 
+  delta <- 0                 #Censorship indicator (0 if data is censored and 1 otherwise)
+  p     <- numexp            #Number of covariates for parameric compoenent (p+1 for Tobit)         
+  x     <- matrix(0,n,p)     #matrix for covariates
+  c     <- matrix(99,n,1)     #Censoring variable independent-identical distributed with Y
+  beta  <- 0                 #reg. coefs.
+  A     <- 0
+  for (i in 1:n){            #Generating uniform nonparametic variable
+    z[i]<-7*(i-0.5)/n
+  }
+  
+  for (i in 1:p){
+    x[,i]  <-runif(n)        #Generating covariates for parametric component
+    beta[i]<-sample(-2:2,1)  #Generatiing regression coefficient
+  }
+  
+  e     <-rnorm(n,mean=0,sd=0.5)              #generating error terms
+  g<-z*sin(z)
+  #g     <-exp(z/2)*cos(5*z^2)+10              #generating unknown smooth function
+  Y     <-x%*%beta+g+e                        #generating completely observed data 
+  delta <-1-rbern(n,CL)                       #censorship indicator (0):censored, (1):observed
+  for (i in 1:n){
+    if (delta[i]==0){
+      while (Y[i]<=c[i]){
+        c[i]<-rnorm(1,mean(Y),sd=sd(Y))
+      }
+    }
+    else{
+      c[i]<-Y[i]
+    }
+  }                           #generating censoring variable
+  for (j in 1:n){
+    if (Y[j]<=c[j]){
+      A[j]<-Y[j]
+    }
+    else{
+      A[j]<-c[j]
+    }
+  }                           #generating incomplete(censored) "A" variable which is used in modelling procedure
+  data<-new.env()
+  data$complete_observations     <-Y                 #Output of the function 1: Completely observed
+  data$incomplete_observations   <-A                 #Output of the function 2: Incompletely observed
+  data$censoring_indicator       <-delta             #Output of the function 3: Censoring indicator (delta)
+  data$censoring_observations    <-c                 #Output of the function 4: censoring variable
+  data$parametric_covariates     <-x                 #Output of the function 5: Parametric covarites
+  data$nonparametric_covarite    <-z                 #Output of the function 6: Nonparametric covarites
+  data$real_reg_coefs            <-beta              #Output of the function 7: Real regression coeffcients
+  data$real_smooth_func          <-g+e               #Output of the function 8: Real smooth function to be estimated (nonparametric component)
+  return(data)  
+}
